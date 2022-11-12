@@ -24,6 +24,13 @@ MODULE_VERSION("0.01");
 #define SYSCALL_NAME(name) (name)
 #endif
 
+#define SYSCALL_HOOK(_name, _function, _original)	\
+		{					\
+			.name = SYSCALL_NAME(_name),	\
+			.function = (_function),	\
+			.original = (_original),	\
+		}
+
 #ifdef PTREGS_SYSCALL_STUBS
 static asmlinkage long (*real_mkdir)(const struct pt_regs *);
 
@@ -63,23 +70,10 @@ asmlinkage int mkdir_hook(const char __user *pathname, umode_t mode)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,11,0)
 #define ftrace_regs pt_regs
-
 static __always_inline struct pt_regs *ftrace_get_regs(struct ftrace_regs *fregs) {
 	return fregs;
 }
 #endif
-
-#define SYSCALL_HOOK(_name, _function, _original)	\
-		{					\
-			.name = SYSCALL_NAME(_name),	\
-			.function = (_function),	\
-			.original = (_original),	\
-		}
-
-
-// utility functions
-void ftrace_callback(unsigned long ip, unsigned long parent_ip, 
-		struct ftrace_ops *op, struct pt_regs *regs);
 
 struct bitch {
 	const char *name;
@@ -90,6 +84,7 @@ struct bitch {
 };
 
 
+// utility functions
 static void notrace hooker_thunk(unsigned long ip, unsigned long pip,
 				 struct ftrace_ops *ops,
 				 struct ftrace_regs *fregs) {
@@ -98,13 +93,13 @@ static void notrace hooker_thunk(unsigned long ip, unsigned long pip,
 					  struct bitch,
 				  	  ops);
 
-#if RECURSIVE_FTRACE
+	#if RECURSIVE_FTRACE
 	regs->ip = (unsigned long)hook->function;
-#else
+    	#else
 	if (!within_module(pip, THIS_MODULE)) {
 		regs->ip = (unsigned long)hook->function;
 	}
-#endif
+    	#endif
 }
 
 
@@ -129,7 +124,7 @@ int pimp_hookers(struct bitch *hookers, size_t hoes) {
 	size_t pimp;
 
 	for (pimp = 0; pimp < hoes; pimp++) {	
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
+    		#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,7,0)
 		struct kprobe kp = {
 			.symbol_name = hookers[pimp].name
 		};
@@ -138,20 +133,20 @@ int pimp_hookers(struct bitch *hookers, size_t hoes) {
 
 		hookers[pimp].address = (unsigned long) kp.addr;
 		unregister_kprobe(&kp);
-#else
+		#else
 		hooker[pimp].address = kallsyms_lookup_name(hookers[pimp].name);
-#endif
+		#endif
 
 		if (!hookers[pimp].address) {
 			pr_debug("find_hooker failed: %s\n", hookers[pimp].name);
 			misbehaving = -ENOENT;
 		}
 
-#if RECURSIVE_FTRACE
+		#if RECURSIVE_FTRACE
 		*((unsigned long*) hookers[pimp].original) = hookers[pimp].address + MCOUNT_INSN_SIZE;
-#else
+		#else
 		*((unsigned long*) hookers[pimp].original) = hookers[pimp].address;
-#endif
+		#endif
 
 		hookers[pimp].ops.func = hooker_thunk;
 		hookers[pimp].ops.flags = FTRACE_OPS_FL_SAVE_REGS
@@ -190,8 +185,6 @@ slap:
 static struct bitch hookers[] = {
     SYSCALL_HOOK("sys_mkdir", mkdir_hook, &real_mkdir),
 };
-
-
 
 
 // entry and exit point
